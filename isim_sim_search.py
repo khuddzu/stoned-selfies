@@ -240,11 +240,67 @@ def get_fingerprint_matrix(smiles_back, fp_type):
     fp_matrix = np.array([get_fingerprint(mol, fp_type) for mol in mols])
     return fp_matrix
 
-def get_isim(smiles_back, fp_type):
-    sum_kq = np.sum(fp_mols)
-    sum_kqsq = np.dot(fp_mols, fp_mols)
-    a = (sumkqsq - sum_kq)/2
-    print(a)
+def calculate_isim(data, n_objects = None, n_ary = 'RR'):
+    """Calculate the iSIM index for RR, JT, or SM
+
+    Arguments
+    ---------
+    data : np.ndarray
+        Array of arrays, each sub-array contains the binary object 
+        OR Array with the columnwise sum, if so specify n_objects
+    
+    n_objects : int
+        Number of objects, only necessary if the column wize sum is the input data.
+
+    n_ary : str
+        String with the initials of the desired similarity index to calculate the iSIM from. 
+        Only RR, JT, or SM are available. For other indexes use gen_sim_dict.
+
+    Returns
+    -------
+    isim : float
+        iSIM index for the specified similarity index.
+    """
+
+    # Check if the data is a np.ndarray of a list
+    if not isinstance(data, np.ndarray):
+        raise TypeError("Warning: Input data is not a np.ndarray, to secure the right results please input the right data type")
+    
+    if data.ndim == 1:
+        c_total = data
+        if not n_objects:
+            raise ValueError("Input data is the columnwise sum, please specify number of objects")
+    else:
+        c_total = np.sum(data, axis = 0)
+        if not n_objects:
+            n_objects = len(data)      
+        elif n_objects and n_objects != len(data):
+            print("Warning, specified number of objects is different from the number of objects in data")
+            n_objects = len(data)
+            print("Doing calculations with", n_objects, "objects.")
+
+    # Calculate only necessary counters for the desired index 
+
+    if n_ary == 'RR':
+        a = np.sum(c_total * (c_total - 1) / 2)
+        p = n_objects * (n_objects - 1) * len(c_total) / 2
+
+        return a/p
+    
+    elif n_ary == 'JT':
+        a = np.sum(c_total * (c_total - 1) / 2)
+        off_coincidences = n_objects - c_total
+        total_dis = np.sum(off_coincidences * c_total)
+
+        return a/(a + total_dis)
+    
+    elif n_ary == 'SM':
+        a = np.sum(c_total * (c_total - 1) / 2)
+        off_coincidences = n_objects - c_total
+        d = np.sum(off_coincidences * (off_coincidences - 1) / 2)
+        p = n_objects * (n_objects - 1) * len(c_total) / 2
+
+        return (a + d)/p
 
 def get_fp_scores(smiles_back, target_smi, fp_type): 
     '''Calculate the Tanimoto fingerprint (using fp_type fingerint) similarity between a list 
@@ -336,8 +392,9 @@ if __name__ == "__main__":
     print('Unique mutated structure obtainment time: ', time.time()-start_time)
     
     start_time = time.time()
-    get_fingerprint_matrix(canon_smi_ls, fp_type='RDKIT')
-    #isim_scores = get_isim(canon_smi_ls, fp_type=fp_type)
+    fp_mat = get_fingerprint_matrix(canon_smi_ls, fp_type='RDKIT')
+    isim_score = calculate_isim(fp_mat)
+    print(isim_score)
     #print('isim:', time.time()-start_time)
     breakpoint()
     canon_smi_ls_scores = get_fp_scores(canon_smi_ls, target_smi=smi, fp_type=fp_type)
