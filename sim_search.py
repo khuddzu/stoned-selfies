@@ -279,8 +279,8 @@ if __name__ == "__main__":
 
         
     total_time = time.time()
-    # num_random_samples = 50000 # TODO 
-    num_random_samples = 1000     
+    num_random_samples = 50000 # TODO 
+    #num_random_samples = 1000     
     num_mutation_ls    = [1, 2, 3, 4, 5]
     
     mol = Chem.MolFromSmiles(smi)

@@ -2,6 +2,7 @@ import time
 import selfies
 import rdkit
 import numpy as np
+
 from rdkit import Chem
 from selfies import encoder, decoder
 from rdkit.Chem import MolFromSmiles as smi2mol
@@ -236,22 +237,48 @@ def get_mutated_SELFIES(selfies_ls, num_mutations):
         selfies_ls = selfie_ls_mut_ls.copy()
     return selfies_ls
 
-def get_fingerprint_matrix(smiles_back, fp_type):
-    start_time = time.time()
+def generate_fp(mol, fp_type, n_bits):
+    if fp_type == 'RDKIT':
+        fp = Chem.RDKFingerprint(mol)
+    elif fp_type == 'ECFP4':
+        fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=n_bits)
+    elif fp_type == 'ECFP6':
+        fp = AllChem.GetMorganFingerprintAsBitVect(mol, 3, nBits=n_bits)
+    elif fp_type == 'MACCS':
+        fp = Chem.MACCSkeys.GenMACCSKeys(mol)
+    else:
+        raise ValueError(f"Invalid fingerprint type: {fp_type}")
+
+    arr = np.zeros(n_bits, dtype=np.int8)
+    DataStructs.ConvertToNumpyArray(fp, arr)
+    return arr
+
+def get_fingerprint_matrix(smiles: list, fp_type: str = 'RDKIT', n_bits: int = 2048):
+    """
+    This function generates binary fingerprints for the dataset.
     
-    mols = [Chem.MolFromSmiles(item) for item in smiles_back]
-    print('mol gen:', time.time()-start_time)
-    start_time = time.time()
-    fp_matrix = np.zeros((len(mols), 2048))
-    for i in range(len(mols)):
-    #for m in mols:
-        fp_matrix[i] = np.array(get_fingerprint(mols[i], fp_type))
-    print('get_fp append:', time.time()-start_time)
-    #start_time = time.time()
-    #p_matrix= np.array(fp_matrix)
-    #print('np convert:', time.time()-start_time)
-    return fp_matrix
+    Parameters:
+    smiles: list of SMILES strings
+    fp_type: type of fingerprint to generate ['RDKIT', 'ECFP4', 'ECFP6', or 'MACCS']
+    n_bits: number of bits for the fingerprint
     
+    Returns:
+    fingerprints: numpy array of fingerprints
+    """
+    fingerprints = np.zeros((len(smiles), n_bits), dtype=np.int8)
+    valid = 0
+    for smi in smiles:
+        mol = Chem.MolFromSmiles(smi)
+        if mol is None:
+            print(f'Invalid SMILES: {smi}')
+            continue
+        
+        fingerprint = generate_fp(mol, fp_type, n_bits)
+        fingerprints[valid] = fingerprint
+        valid +=1 
+
+    return fingerprints[:valid] 
+
 def calculate_isim(data, n_objects = None, n_ary = 'RR'):
     """Calculate the iSIM index for RR, JT, or SM
 
@@ -359,8 +386,8 @@ if __name__ == "__main__":
 
         
     total_time = time.time()
-    # num_random_samples = 50000 # TODO 
-    num_random_samples = 1000
+    num_random_samples = 50000 # TODO 
+    #num_random_samples = 10000
     num_mutation_ls    = [1, 2, 3, 4, 5]
     
     mol = Chem.MolFromSmiles(smi)
