@@ -118,6 +118,7 @@ class _FingerprintCalculator:
 
     def get_RDKIT(self, mol: Mol):
         return Chem.RDKFingerprint(mol)
+        #return DataStructs.cDataStructs.ConvertToNumpyArray(Chem.RDKFingerprint(mol), fp_matrix)
 
 def get_fingerprint(mol: Mol, fp_type: str):
     ''' Fingerprint getter method. Fingerprint is returned after using object of 
@@ -236,10 +237,21 @@ def get_mutated_SELFIES(selfies_ls, num_mutations):
     return selfies_ls
 
 def get_fingerprint_matrix(smiles_back, fp_type):
+    start_time = time.time()
+    
     mols = [Chem.MolFromSmiles(item) for item in smiles_back]
-    fp_matrix = np.array([get_fingerprint(mol, fp_type) for mol in mols])
+    print('mol gen:', time.time()-start_time)
+    start_time = time.time()
+    fp_matrix = np.zeros((len(mols), 2048))
+    for i in range(len(mols)):
+    #for m in mols:
+        fp_matrix[i] = np.array(get_fingerprint(mols[i], fp_type))
+    print('get_fp append:', time.time()-start_time)
+    #start_time = time.time()
+    #p_matrix= np.array(fp_matrix)
+    #print('np convert:', time.time()-start_time)
     return fp_matrix
-
+    
 def calculate_isim(data, n_objects = None, n_ary = 'RR'):
     """Calculate the iSIM index for RR, JT, or SM
 
@@ -348,7 +360,7 @@ if __name__ == "__main__":
         
     total_time = time.time()
     # num_random_samples = 50000 # TODO 
-    num_random_samples = 10     
+    num_random_samples = 1000
     num_mutation_ls    = [1, 2, 3, 4, 5]
     
     mol = Chem.MolFromSmiles(smi)
@@ -393,16 +405,16 @@ if __name__ == "__main__":
     
     start_time = time.time()
     fp_mat = get_fingerprint_matrix(canon_smi_ls, fp_type='RDKIT')
+    print('fp_mat:', time.time()-start_time)
+    start_time = time.time()
     isim_score = calculate_isim(fp_mat)
-    print(isim_score)
-    #print('isim:', time.time()-start_time)
-    breakpoint()
-    canon_smi_ls_scores = get_fp_scores(canon_smi_ls, target_smi=smi, fp_type=fp_type)
+    print('isim_time:', time.time()-start_time)
+    #canon_smi_ls_scores = get_fp_scores(canon_smi_ls, target_smi=smi, fp_type=fp_type)
     print('Fingerprint calculation time: ', time.time()-start_time)
     print('Total time: ', time.time()-total_time)
     print()
     
-
+"""
     A, B, C = [x for x in canon_smi_ls_scores if x > 0.75], [x for x in canon_smi_ls_scores if x > 0.6], [x for x in canon_smi_ls_scores if x > 0.4]
     
     print('Number of molecules: ')
@@ -414,7 +426,7 @@ if __name__ == "__main__":
     print('    % Delta > 0.75: ', (len(A)/len(canon_smi_ls_scores))*100 )
     print('    % Delta > 0.6: ', (len(B)/len(canon_smi_ls_scores))*100)
     print('    % Delta > 0.4: ', (len(C)/len(canon_smi_ls_scores))*100)
-    
+"""    
 
 
 
